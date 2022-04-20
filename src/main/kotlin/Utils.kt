@@ -4,6 +4,7 @@ import com.google.common.base.Strings
 import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
 import com.google.gson.Gson
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
 import com.oracle.bmc.ConfigFileReader.ConfigFile
@@ -17,6 +18,7 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter
 import org.bouncycastle.openssl.jcajce.JcaPKCS8Generator
 import org.bouncycastle.util.io.pem.PemWriter
 import org.telegram.abilitybots.api.bot.BaseAbilityBot
+import org.telegram.abilitybots.api.objects.Reply
 import org.telegram.abilitybots.api.sender.MessageSender
 import org.telegram.abilitybots.api.sender.SilentSender
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
@@ -249,8 +251,11 @@ fun InlineKeyboardButtonBuilder.callbackData(callback: InlineKeyboardCallback): 
     return this
 }
 
-fun InlineKeyboardButtonBuilder.callbackData(action: String, extraData: String? = null): InlineKeyboardButtonBuilder {
-    callbackData(InlineKeyboardCallback(action, extraData))
+fun InlineKeyboardButtonBuilder.callbackData(
+    action: String,
+    extraData: JsonObject? = null
+): InlineKeyboardButtonBuilder {
+    callbackData(InlineKeyboardCallback(action, extraData ?: JsonObject()))
     return this
 }
 
@@ -291,14 +296,14 @@ val gson = Gson()
 @Suppress("MemberVisibilityCanBePrivate")
 data class InlineKeyboardCallback(
     @SerializedName("a") val action: String,
-    @SerializedName("d") val extraData: String? = null
+    @SerializedName("d") val extraData: JsonObject = JsonObject()
 ) {
 
     fun toJson(): String {
         return gson.toJson(this)
     }
 
-    fun next(newAction: String, newExtraData: String? = null): InlineKeyboardCallback {
+    fun next(newAction: String, newExtraData: JsonObject? = null): InlineKeyboardCallback {
         return InlineKeyboardCallback(newAction, newExtraData ?: this.extraData)
     }
 
@@ -326,5 +331,47 @@ fun Random.randomString(length: Int): String {
         builder.append(char)
     }
     return builder.toString()
+}
+
+fun callbackQueryOf(action: String, block: (BaseAbilityBot, Update) -> Unit): Reply =
+    Reply.of(block, callbackQueryAt(action))
+
+const val JSON_FIELD_PROFILE = "profile"
+
+fun getProfileByCallback(callback: InlineKeyboardCallback): OracleAccountProfile {
+    return OracleAccountProfile.fromJson(callback.extraData[JSON_FIELD_PROFILE].asJsonObject)
+}
+
+class JsonObjectBuilder(private val jsonObject: JsonObject) {
+
+    operator fun String.plusAssign(json: JsonElement) {
+        jsonObject.add(this, json)
+    }
+
+    operator fun String.plusAssign(value: String) {
+        jsonObject.addProperty(this, value)
+    }
+
+    operator fun String.plusAssign(value: Boolean) {
+        jsonObject.addProperty(this, value)
+    }
+
+    operator fun String.plusAssign(value: Char) {
+        jsonObject.addProperty(this, value)
+    }
+
+    operator fun String.plusAssign(value: Number) {
+        jsonObject.addProperty(this, value)
+    }
+
+    operator fun String.plusAssign(value: Any) {
+        jsonObject.add(this, gson.toJsonTree(value))
+    }
+}
+
+fun jsonObjectOf(block: JsonObjectBuilder.() -> Unit): JsonObject {
+    val jsonObject = JsonObject()
+    JsonObjectBuilder(jsonObject).block()
+    return jsonObject
 }
 

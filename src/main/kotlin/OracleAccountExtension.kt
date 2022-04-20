@@ -68,7 +68,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
 
                 if (!OracleAccessKeyManager.accessKeyContains(profile.keyFingerprint)) {
                     bot.db().getVar<String>("oc_account_add::${upd.message.chatId}::profile").set(
-                        profile.toJson()
+                        profile.toJsonString()
                     )
                     bot.silent().send(
                         "OK，配置文件检查通过，现在需要发送相应的私钥（机器人的所有人将对密钥的安全性负责），" +
@@ -174,7 +174,12 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
             .newRow()
             .addButton {
                 text(changeNameMsg)
-                callbackData(action = "oc_account_change_name", profile.toJson())
+                callbackData(
+                    action = "oc_account_change_name",
+                    extraData = jsonObjectOf {
+                        JSON_FIELD_PROFILE += profile
+                    }
+                )
             }
             .build()
         return SendMessage.builder()
@@ -216,7 +221,9 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
                         .text(text)
                         .callbackData(
                             action = "oc_account_manager",
-                            extraData = account.toJson()
+                            extraData = jsonObjectOf {
+                                JSON_FIELD_PROFILE += account
+                            }
                         )
                         .build()
                 )
@@ -245,7 +252,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
 
     fun manageOracleAccount(): Reply = Reply.of({ bot, upd ->
         val keyboardCallback = upd.callbackQuery.callbackData
-        val profile = OracleAccountProfile.fromJson(keyboardCallback.extraData!!)
+        val profile = getProfileByCallback(upd.callbackQuery.callbackData)
         val identityClient = IdentityClient(profile.getAuthenticationDetailsProvider())
         val user = try {
             identityClient.getUser(profile.userId)
@@ -257,12 +264,12 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
             .newRow()
             .addButton {
                 text("服务器列表")
-                callbackData(action = "oc_server_list", keyboardCallback.extraData)
+                callbackData(keyboardCallback.next("oc_server_list"))
             }
             .newRow()
             .addButton {
                 text("账号管理")
-                callbackData(action = "oc_account_edit", keyboardCallback.extraData)
+                callbackData(keyboardCallback.next("oc_account_edit"))
             }
             .newRow().addButton {
                 text("<<< 返回上一级")
@@ -317,7 +324,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
 
     fun removeOracleAccount(): Reply = ReplyFlow.builder(bot.db())
         .action { bot, upd ->
-            val profile = OracleAccountProfile.fromJson(upd.callbackQuery.callbackData.extraData!!)
+            val profile = getProfileByCallback(upd.callbackQuery.callbackData)
             val keyboardCallback = upd.callbackQuery.callbackData
             EditMessageText.builder()
                 .chatId(upd.callbackQuery.message.chatId.toString())
@@ -339,8 +346,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
         }
         .onlyIf(callbackQueryAt("oc_account_remove"))
         .next(Reply.of({ bot, upd ->
-            val keyboardCallback = upd.callbackQuery.callbackData
-            val profile = OracleAccountProfile.fromJson(keyboardCallback.extraData!!)
+            val profile = getProfileByCallback(upd.callbackQuery.callbackData)
             val result =
                 OracleAccountManage.removeOracleAccountByOracleUserId(profile.userId, upd.callbackQuery.from.id)
             val msg = if (result) {
@@ -366,12 +372,12 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
                 bot.silent().send("出现未知错误，请联系机器人管理员。", upd.callbackQuery.message.chatId)
                 return@action
             }
-            val profile = OracleAccountProfile.fromJson(upd.callbackQuery.callbackData.extraData!!)
+            val profile = getProfileByCallback(upd.callbackQuery.callbackData)
             val entryName = "oc_account_change_name::cache::" +
                     "chat_${upd.callbackQuery.message.chatId}::user_${upd.callbackQuery.from.id}::profile"
             logger.debug { "询问名称 - Profile 键名称：$entryName" }
 
-            bot.db().getVar<String>(entryName).set(upd.callbackQuery.callbackData.extraData)
+            bot.db().getVar<String>(entryName).set(getProfileByCallback(upd.callbackQuery.callbackData).toJsonString())
             bot.silent().send(
                 "当前机器人的名称为：\n${profile.name}\n请发送机器人的新名称。",
                 upd.callbackQuery.message.chatId

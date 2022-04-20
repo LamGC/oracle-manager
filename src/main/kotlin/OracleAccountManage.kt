@@ -1,6 +1,7 @@
 package net.lamgc.scext.oraclemanager
 
 import com.google.common.base.Supplier
+import com.google.gson.JsonObject
 import com.oracle.bmc.OCID
 import com.oracle.bmc.Region
 import com.oracle.bmc.auth.AuthenticationDetailsProvider
@@ -37,7 +38,9 @@ data class OracleAccountProfile(
     var name: String,
 ) : java.io.Serializable {
 
-    fun toJson(): String = gson.toJson(this)
+    fun toJsonString(): String = gson.toJson(this)
+
+    fun toJsonObject(): JsonObject = gson.toJsonTree(this, JsonObject::class.java).asJsonObject
 
     fun getAuthenticationDetailsProvider(accessKeyProvider: Supplier<InputStream>? = null): AuthenticationDetailsProvider {
         val accessKey = accessKeyProvider
@@ -55,6 +58,10 @@ data class OracleAccountProfile(
     companion object {
         @JvmStatic
         fun fromJson(json: String): OracleAccountProfile =
+            gson.fromJson(json, OracleAccountProfile::class.java)
+
+        @JvmStatic
+        fun fromJson(json: JsonObject): OracleAccountProfile =
             gson.fromJson(json, OracleAccountProfile::class.java)
     }
 }
