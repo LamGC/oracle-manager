@@ -185,24 +185,21 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
     }
 
     fun listOracleAccountReply(): Reply = Reply.of({ bot, upd ->
-        doListOracleAccount(bot, upd.callbackQuery.message.chatId, upd.callbackQuery.from.id)
+        doListOracleAccount(
+            bot,
+            upd.callbackQuery.message.chatId,
+            upd.callbackQuery.from.id,
+            upd.callbackQuery.message.messageId
+        )
     }, callbackQueryAt("oc_account_list"))
 
-    private fun doListOracleAccount(bot: BaseAbilityBot, chatId: Long, userId: Long) {
+    private fun doListOracleAccount(bot: BaseAbilityBot, chatId: Long, userId: Long, messageId: Int? = null) {
         val accounts = OracleAccountManage.getOracleAccountsByTelegramUserId(userId)
         if (accounts.isEmpty()) {
             bot.silent().send("你还没有绑定任何 Oracle 账号，请使用【/oc_account_add】绑定一个 Oracle 账号。", chatId)
             return
         }
         // TODO: 要弄个页面, 防止账号太多刷爆了
-        val msgBuilder = SendMessage.builder()
-            .chatId(chatId.toString())
-            .text(
-                """
-                当前 Telegram 用户已绑定以下 Oracle 账号
-                （账号没有名字只有邮箱是因为通过 API 获取名字失败）
-            """.trimIndent()
-            )
         val keyboardGroup = InlineKeyboardMarkup.builder()
         for (account in accounts) {
             val provider = account.getAuthenticationDetailsProvider()
@@ -225,8 +222,25 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
                 )
             )
         }
-        msgBuilder.replyMarkup(keyboardGroup.build())
-        bot.silent().execute(msgBuilder.build())
+        val text = """
+                当前 Telegram 用户已绑定以下 Oracle 账号
+                （账号没有名字只有邮箱是因为通过 API 获取名字失败）
+                """.trimIndent()
+
+        if (messageId == null) {
+            SendMessage.builder()
+                .chatId(chatId.toString())
+                .text(text)
+                .replyMarkup(keyboardGroup.build())
+                .build().execute(bot.silent())
+        } else {
+            EditMessageText.builder()
+                .text(text)
+                .messageId(messageId)
+                .chatId(chatId.toString())
+                .replyMarkup(keyboardGroup.build())
+                .build().execute(bot.silent())
+        }
     }
 
     fun manageOracleAccount(): Reply = Reply.of({ bot, upd ->
