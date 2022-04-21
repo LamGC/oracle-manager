@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package net.lamgc.scext.oraclemanager
 
 import com.google.common.base.Strings
@@ -41,9 +43,9 @@ import java.security.interfaces.RSAPrivateCrtKey
 import java.security.spec.PKCS8EncodedKeySpec
 import java.security.spec.RSAPublicKeySpec
 import java.util.*
-import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.Predicate
 import java.util.regex.Pattern
 
 fun BaseAbilityBot.getFileUrl(fileId: String, apiServer: String = "https://api.telegram.org"): String {
@@ -56,9 +58,10 @@ fun <T : HttpResponse> T.isSuccess(): Boolean = code == 200
 fun <T : HttpResponse> T.hasContent(): Boolean = this is HttpEntityContainer
 
 fun <T : AuthenticationDetailsProvider> T.validate(): Boolean {
-    return !Strings.isNullOrEmpty(userId) &&
-            !Strings.isNullOrEmpty(tenantId) &&
-            !Strings.isNullOrEmpty(fingerprint)
+    return OCID.isValid(userId) &&
+            OCID.isValid(tenantId) &&
+            !Strings.isNullOrEmpty(fingerprint) &&
+            fingerprintCheckPattern.matcher(fingerprint).matches()
 }
 
 private val fingerprintCheckPattern = Pattern.compile("^[\\da-zA-Z]{2}(:[\\da-zA-Z]{2}){15}\$")
@@ -174,6 +177,10 @@ class InlineKeyboardGroupBuilder {
         builder.keyboardRow(row)
     }
 
+    fun rowButton(apply: InlineKeyboardButtonBuilder.() -> Unit): InlineKeyboardGroupBuilder {
+        return newRow().addButton(apply).then()
+    }
+
     fun build(): InlineKeyboardMarkup = builder.build()
 }
 
@@ -240,8 +247,14 @@ fun callbackQueryAt(actionName: String): (Update) -> Boolean {
     }
 }
 
+fun checkCallbackQueryIsProfileOwner(): (Update) -> Boolean = { upd ->
+    upd.hasCallbackQuery() && upd.callbackQuery.callbackDataOrNull != null &&
+            upd.callbackQuery.from.id == getProfileByCallback(upd.callbackQuery.callbackData).telegramUserId
+}
+
 private val callbackCache: Cache<String, InlineKeyboardCallback> = CacheBuilder.newBuilder()
-    .expireAfterAccess(30, TimeUnit.MINUTES)
+    .expireAfterAccess(10, TimeUnit.MINUTES)
+    .softValues()
     .build()
 
 fun InlineKeyboardButtonBuilder.callbackData(callback: InlineKeyboardCallback): InlineKeyboardButtonBuilder {
@@ -269,13 +282,11 @@ fun createPromptKeyboard(
     noMsg: String = "取消"
 ): InlineKeyboardMarkup {
     return InlineKeyboardGroupBuilder()
-        .newRow()
-        .addButton {
+        .rowButton {
             text(yesMsg)
             callbackData(yesCallback)
         }
-        .newRow()
-        .addButton {
+        .rowButton {
             text(noMsg)
             callbackData(noCallback)
         }
@@ -356,13 +367,21 @@ fun Random.randomString(length: Int): String {
     return builder.toString()
 }
 
-fun callbackQueryOf(action: String, block: (BaseAbilityBot, Update) -> Unit): Reply =
-    Reply.of(block, callbackQueryAt(action))
-
-const val JSON_FIELD_PROFILE = "profile"
+fun callbackQueryOf(
+    action: String,
+    checkProfileOwner: Boolean = false,
+    block: (BaseAbilityBot, Update) -> Unit
+): Reply {
+    return Reply.of(block, mutableListOf<Predicate<Update>?>().apply {
+        add(callbackQueryAt(action))
+        if (checkProfileOwner) {
+            add(checkCallbackQueryIsProfileOwner())
+        }
+    }.toList())
+}
 
 fun getProfileByCallback(callback: InlineKeyboardCallback): OracleAccountProfile {
-    return OracleAccountProfile.fromJson(callback.extraData[JSON_FIELD_PROFILE].asJsonObject)
+    return OracleAccountProfile.fromJson(callback.extraData[JsonFields.AccountProfile].asJsonObject)
 }
 
 class JsonObjectBuilder(private val jsonObject: JsonObject) {
@@ -392,8 +411,7 @@ class JsonObjectBuilder(private val jsonObject: JsonObject) {
     }
 }
 
-fun jsonObjectOf(block: JsonObjectBuilder.() -> Unit): JsonObject {
-    val jsonObject = JsonObject()
+fun jsonObjectOf(jsonObject: JsonObject = JsonObject(), block: JsonObjectBuilder.() -> Unit): JsonObject {
     JsonObjectBuilder(jsonObject).block()
     return jsonObject
 }
