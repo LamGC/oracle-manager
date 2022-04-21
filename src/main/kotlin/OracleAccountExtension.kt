@@ -267,6 +267,10 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
             .newRow()
             .addButton {
                 text("账号管理")
+                callbackData(keyboardCallback.next("oc_identity_menu"))
+            }
+            .rowButton {
+                text("设置")
                 callbackData(keyboardCallback.next("oc_account_edit"))
             }
             .rowButton {
