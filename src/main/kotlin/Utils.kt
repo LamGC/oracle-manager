@@ -245,7 +245,10 @@ private val callbackCache: Cache<String, InlineKeyboardCallback> = CacheBuilder.
     .build()
 
 fun InlineKeyboardButtonBuilder.callbackData(callback: InlineKeyboardCallback): InlineKeyboardButtonBuilder {
-    val cacheReferenceCode = ThreadLocalRandom.current().randomString(32)
+    var cacheReferenceCode: String
+    do {
+        cacheReferenceCode = Random().randomString(32)
+    } while (callbackCache.getIfPresent(cacheReferenceCode) != null)
     callbackCache.put(cacheReferenceCode, callback)
     callbackData("{\"rcode\":\"$cacheReferenceCode\"}")
     return this
