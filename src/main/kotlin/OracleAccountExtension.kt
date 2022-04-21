@@ -264,8 +264,11 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
                 text("服务器列表")
                 callbackData(keyboardCallback.next("oc_server_list"))
             }
-            .newRow()
-            .addButton {
+            .rowButton {
+                text("网络管理")
+                callbackData(keyboardCallback.next("oc_network_menu"))
+            }
+            .rowButton {
                 text("账号管理")
                 callbackData(keyboardCallback.next("oc_identity_menu"))
             }
