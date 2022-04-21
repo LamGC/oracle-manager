@@ -306,8 +306,28 @@ data class InlineKeyboardCallback(
         return gson.toJson(this)
     }
 
-    fun next(newAction: String, newExtraData: JsonObject? = null): InlineKeyboardCallback {
-        return InlineKeyboardCallback(newAction, newExtraData ?: this.extraData)
+    /**
+     * 创建下一动作的回调数据对象.
+     * @param newAction 下一个动作名称.
+     * @param newExtraData 新的回调额外数据, 如果不为 null, 将会跟原本的 JsonObject 合并, 重复项将使用新 JsonObject 的值.
+     * @return 返回新的回调数据对象.
+     */
+    fun next(
+        newAction: String,
+        newExtraData: JsonObject? = null,
+        replaceData: Boolean = false
+    ): InlineKeyboardCallback {
+        if (newExtraData != null) {
+            if (replaceData) {
+                return InlineKeyboardCallback(newAction, newExtraData)
+            }
+            val nextExtraData = this.extraData.deepCopy()
+            for (key in newExtraData.keySet()) {
+                nextExtraData.add(key, newExtraData[key])
+            }
+            return InlineKeyboardCallback(newAction, nextExtraData)
+        }
+        return InlineKeyboardCallback(newAction, this.extraData)
     }
 
     companion object {
@@ -378,3 +398,15 @@ fun jsonObjectOf(block: JsonObjectBuilder.() -> Unit): JsonObject {
     return jsonObject
 }
 
+object JsonFields {
+    /**
+     * [OracleAccountProfile] 字段
+     */
+    const val AccountProfile = "account_profile"
+
+    /**
+     * [ServerInstance]
+     */
+    const val ServerInstance = "server_instance"
+
+}
