@@ -153,7 +153,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
         .build()
 
     fun listOracleAccount(): Ability = Ability.builder()
-        .name("oc_account_list")
+        .name("myoracle")
         .info("列出关联的 Oracle 账号")
         .privacy(Privacy.PUBLIC)
         .locality(Locality.USER)
