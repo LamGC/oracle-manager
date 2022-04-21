@@ -171,13 +171,12 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
         val markup = InlineKeyboardGroupBuilder()
             .configure {
             }
-            .newRow()
-            .addButton {
+            .rowButton {
                 text(changeNameMsg)
                 callbackData(
                     action = "oc_account_change_name",
                     extraData = jsonObjectOf {
-                        JSON_FIELD_PROFILE += profile
+                        JsonFields.AccountProfile += profile
                     }
                 )
             }
@@ -222,7 +221,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
                         .callbackData(
                             action = "oc_account_manager",
                             extraData = jsonObjectOf {
-                                JSON_FIELD_PROFILE += account
+                                JsonFields.AccountProfile += account
                             }
                         )
                         .build()
@@ -261,8 +260,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
             null
         }
         val newKeyboardMarkup = InlineKeyboardGroupBuilder()
-            .newRow()
-            .addButton {
+            .rowButton {
                 text("服务器列表")
                 callbackData(keyboardCallback.next("oc_server_list"))
             }
@@ -271,11 +269,10 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
                 text("账号管理")
                 callbackData(keyboardCallback.next("oc_account_edit"))
             }
-            .newRow().addButton {
+            .rowButton {
                 text("<<< 返回上一级")
                 callbackData(action = "oc_account_list")
-            }
-            .then().build()
+            }.build()
 
         val editMessageText = EditMessageText.builder()
             .chatId(upd.callbackQuery.message.chatId.toString())
@@ -298,21 +295,18 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
     fun editOracleAccount(): Reply = Reply.of({ bot, upd ->
         val keyboardCallback = upd.callbackQuery.callbackData
         val newKeyboardMarkup = InlineKeyboardGroupBuilder()
-            .newRow()
-            .addButton {
+            .rowButton {
                 text("更改名称")
                 callbackData(action = "oc_account_change_name", keyboardCallback.extraData)
             }
-            .newRow()
-            .addButton {
+            .rowButton {
                 text("解绑 Oracle 账号")
                 callbackData(action = "oc_account_remove", keyboardCallback.extraData)
             }
-            .newRow().addButton {
+            .rowButton {
                 text("<<< 返回上一级")
                 callbackData(action = "oc_account_manager", keyboardCallback.extraData)
-            }
-            .then().build()
+            }.build()
 
         val editMessageReplyMarkup = EditMessageReplyMarkup.builder()
             .chatId(upd.callbackQuery.message.chatId.toString())
