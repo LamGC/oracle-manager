@@ -11,11 +11,17 @@ version = "1.0-SNAPSHOT"
 repositories {
     mavenLocal()
     mavenCentral()
+
+    maven("https://raw.githubusercontent.com/LamGC/maven-repository/releases/") {
+        mavenContent {
+            releasesOnly()
+        }
+    }
 }
 
 dependencies {
     implementation("io.github.microutils:kotlin-logging:2.1.21")
-    compileOnly("net.lamgc:scalabot-extension:0.1.0")
+    compileOnly("net.lamgc:scalabot-extension:0.2.0")
 
     val ociSdkVer = "2.22.0"
     implementation("com.oracle.oci.sdk:oci-java-sdk-core:$ociSdkVer")
