@@ -297,7 +297,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
             .replyMarkup(newKeyboardMarkup)
             .build()
         bot.silent().execute(editMessageText)
-    }, callbackQueryAt("oc_account_manager"))
+    }, callbackQueryAt("oc_account_manager"), checkCallbackQueryIsProfileOwner())
 
     fun editOracleAccount(): Reply = Reply.of({ bot, upd ->
         val keyboardCallback = upd.callbackQuery.callbackData
@@ -321,7 +321,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
             .replyMarkup(newKeyboardMarkup)
             .build()
         bot.silent().execute(editMessageReplyMarkup)
-    }, callbackQueryAt("oc_account_edit"))
+    }, callbackQueryAt("oc_account_edit"), checkCallbackQueryIsProfileOwner())
 
     fun removeOracleAccount(): Reply = ReplyFlow.builder(bot.db())
         .action { bot, upd ->
@@ -345,7 +345,9 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
                 .build()
                 .execute(bot.silent())
         }
-        .onlyIf(callbackQueryAt("oc_account_remove"))
+        .onlyIf {
+            callbackQueryAt("oc_account_remove")(it) && checkCallbackQueryIsProfileOwner()(it)
+        }
         .next(Reply.of({ bot, upd ->
             val profile = getProfileByCallback(upd.callbackQuery.callbackData)
             val result =
@@ -362,7 +364,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
                 .replyMarkup(InlineKeyboardMarkup.builder().clearKeyboard().build())
                 .build()
                 .execute(bot.silent())
-        }, callbackQueryAt("oc_account_remove_yes")))
+        }, callbackQueryAt("oc_account_remove_yes"), checkCallbackQueryIsProfileOwner()))
         .build()
 
     fun changeOracleAccountName(): Reply = ReplyFlow.builder(bot.db())
@@ -404,7 +406,12 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
                 logger.error(e) { "更新 Oracle 账号时发生错误." }
                 bot.silent().send("更新 Oracle 账号名称时发生错误，请联系机器人管理员。", upd.message.chatId)
             }
-        }, { upd -> upd.hasMessage() && upd.message.hasText() }))
+        }, { upd ->
+            upd.hasMessage() && upd.message.hasText() && bot.db().getVar<String>(
+                "oc_account_change_name::cache::chat_${upd.message.chatId}::user_${upd.message.from.id}::profile"
+            )
+                .get() != null
+        }))
         .build()
 
     fun clearUnusedAccessKey(): Ability = Ability.builder()
