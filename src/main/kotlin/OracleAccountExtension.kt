@@ -6,7 +6,6 @@ import com.oracle.bmc.model.BmcException
 import mu.KotlinLogging
 import org.apache.hc.client5.http.classic.methods.HttpGet
 import org.apache.hc.client5.http.impl.classic.HttpClients
-import org.apache.hc.core5.http.HttpHost
 import org.telegram.abilitybots.api.bot.BaseAbilityBot
 import org.telegram.abilitybots.api.objects.*
 import org.telegram.abilitybots.api.util.AbilityExtension
@@ -18,9 +17,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import java.io.ByteArrayInputStream
 import java.security.interfaces.RSAPrivateCrtKey
 
-private val httpClient = HttpClients.custom()
-    .setProxy(HttpHost("127.0.0.1", 1080))
-    .build()
+private val httpClient = HttpClients.createSystem()
 
 @Suppress("unused")
 class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityExtension {
