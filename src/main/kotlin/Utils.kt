@@ -219,6 +219,13 @@ class InlineKeyboardRowBuilder(private val groupBuilder: InlineKeyboardGroupBuil
     }
 }
 
+fun InlineKeyboardGroupBuilder.addBackButton(callback: InlineKeyboardCallback) {
+    rowButton {
+        text("<<< 返回上一级")
+        callbackData(callback)
+    }
+}
+
 val CallbackQuery.callbackData: InlineKeyboardCallback
     get() {
         val refJson = gson.fromJson(data, JsonObject::class.java)
@@ -369,7 +376,7 @@ fun Random.randomString(length: Int): String {
 
 fun callbackQueryOf(
     action: String,
-    checkProfileOwner: Boolean = false,
+    checkProfileOwner: Boolean = true,
     block: (BaseAbilityBot, Update) -> Unit
 ): Reply {
     return Reply.of(block, mutableListOf<Predicate<Update>?>().apply {
