@@ -220,11 +220,12 @@ class InlineKeyboardRowBuilder(private val groupBuilder: InlineKeyboardGroupBuil
     }
 }
 
-fun InlineKeyboardGroupBuilder.addBackButton(callback: InlineKeyboardCallback) {
+fun InlineKeyboardGroupBuilder.addBackButton(callback: InlineKeyboardCallback): InlineKeyboardGroupBuilder {
     rowButton {
         text("<<< 返回上一级")
         callbackData(callback)
     }
+    return this
 }
 
 val CallbackQuery.callbackData: InlineKeyboardCallback
