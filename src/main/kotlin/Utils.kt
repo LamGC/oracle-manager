@@ -7,6 +7,7 @@ import com.google.common.cache.Cache
 import com.google.common.cache.CacheBuilder
 import com.google.gson.Gson
 import com.google.gson.JsonElement
+import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
 import com.oracle.bmc.ConfigFileReader.ConfigFile
@@ -341,7 +342,14 @@ data class InlineKeyboardCallback(
             }
             val nextExtraData = this.extraData.deepCopy()
             for (key in newExtraData.keySet()) {
-                nextExtraData.add(key, newExtraData[key])
+                val value = newExtraData[key]
+                if (value == JsonNull.INSTANCE) {
+                    if (nextExtraData.has(key)) {
+                        nextExtraData.remove(key)
+                    }
+                } else {
+                    nextExtraData.add(key, value)
+                }
             }
             return InlineKeyboardCallback(newAction, nextExtraData)
         }
@@ -415,6 +423,14 @@ class JsonObjectBuilder(private val jsonObject: JsonObject) {
 
     operator fun String.plusAssign(value: Any) {
         jsonObject.add(this, gson.toJsonTree(value))
+    }
+
+    fun String.delete(setNull: Boolean = false) {
+        if (setNull) {
+            jsonObject.add(this, JsonNull.INSTANCE)
+        } else {
+            jsonObject.remove(this)
+        }
     }
 }
 
