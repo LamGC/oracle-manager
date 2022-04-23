@@ -2,8 +2,8 @@ package net.lamgc.scext.oraclemanager
 
 import com.google.gson.JsonElement
 import com.oracle.bmc.core.ComputeClient
-import com.oracle.bmc.core.model.Instance
-import com.oracle.bmc.core.model.UpdateInstanceDetails
+import com.oracle.bmc.core.VirtualNetworkClient
+import com.oracle.bmc.core.model.*
 import com.oracle.bmc.core.requests.*
 import com.oracle.bmc.model.BmcException
 import mu.KotlinLogging
@@ -355,6 +355,268 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
             logger.error(e) { "请求执行实例电源操作时发生错误." }
             bot.silent().send("请求电源操作时发生错误，请重试一次。", upd.callbackQuery.message.chatId)
         }
+    }
+
+    fun editServerNetworkMenu(): Reply = callbackQueryOf("oc_server_network_edit") { bot, upd ->
+        val profile = getProfileByCallback(upd.callbackQuery.callbackData)
+        val adp = profile.getAuthenticationDetailsProvider()
+        val computeClient = ComputeClient(adp)
+        val networkClient = VirtualNetworkClient(adp)
+        val instanceInfo = ServerInstance.fromJson(upd.callbackQuery.callbackData.extraData[JsonFields.ServerInstance])
+        val vnicAttachments = computeClient.listVnicAttachments(
+            ListVnicAttachmentsRequest.builder()
+                .compartmentId(profile.tenantId)
+                .instanceId(instanceInfo.id)
+                .build()
+        ).items
+
+        val keyboardBuilder = InlineKeyboardGroupBuilder()
+        for (vnicAttachment in vnicAttachments) {
+
+            keyboardBuilder.rowButton {
+                val vnic = networkClient.getVnic(GetVnicRequest.builder().vnicId(vnicAttachment.vnicId).build()).vnic
+                text("${vnic.displayName}【${vnic.privateIp}】${if (vnic.isPrimary) "（主要）" else ""}")
+                callbackData(
+                    upd.callbackQuery.callbackData.next(
+                        newAction = "oc_server_network_vnic_edit",
+                        newExtraData = jsonObjectOf {
+                            JsonFields.VnicId += vnicAttachment.vnicId
+                        })
+                )
+            }
+        }
+
+        keyboardBuilder.addBackButton(upd.callbackQuery.callbackData.next("oc_server_manage"))
+        EditMessageText.builder()
+            .chatId(upd.callbackQuery.message.chatId.toString())
+            .messageId(upd.callbackQuery.message.messageId)
+            .replyMarkup(keyboardBuilder.build())
+            .text(
+                """
+                服务器实例 ${instanceInfo.displayName} 有以下 VNIC（网卡）：
+            """.trimIndent()
+            )
+            .build().execute(bot)
+    }
+
+    fun editServerVnicMenu(): Reply = callbackQueryOf("oc_server_network_vnic_edit") { bot, upd ->
+        val profile = getProfileByCallback(upd.callbackQuery.callbackData)
+        val vnicId = upd.callbackQuery.callbackData.extraData[JsonFields.VnicId].asString
+        val adp = profile.getAuthenticationDetailsProvider()
+        val networkClient = VirtualNetworkClient(adp)
+
+        val vnic = networkClient.getVnic(GetVnicRequest.builder().vnicId(vnicId).build()).vnic
+
+        val keyboardBuilder = InlineKeyboardGroupBuilder()
+            .rowButton {
+                text("更换公网 IP（保留 IP）")
+                callbackData(
+                    upd.callbackQuery.callbackData.next(
+                        "oc_server_network_change_ipv4pub_list"
+                    )
+                )
+            }
+            .rowButton {
+                text("更换公网 IP（临时 IP）")
+                callbackData(
+                    upd.callbackQuery.callbackData.next(
+                        "oc_server_network_change_ipv4pub_random"
+                    )
+                )
+            }
+
+        EditMessageText.builder()
+            .chatId(upd.callbackQuery.message.chatId.toString())
+            .messageId(upd.callbackQuery.message.messageId)
+            .replyMarkup(
+                keyboardBuilder
+                    .addBackButton(upd.callbackQuery.callbackData.next("oc_server_network_edit"))
+                    .build()
+            )
+            .text(
+                """
+                ----------- [ VNIC ] -----------
+                ${vnic.displayName}
+                私有 IP：${vnic.privateIp}
+                公网 IP：${if (vnic.publicIp == null) "无" else vnic.publicIp}
+                MAC 地址：${vnic.macAddress}
+                主要网卡：${if (vnic.isPrimary) "是" else "否"}
+                当前状态：${vnic.lifecycleState}
+            """.trimIndent()
+            )
+            .build().execute(bot)
+    }
+
+    fun changePublicIpList(): Reply = callbackQueryOf("oc_server_network_change_ipv4pub_list") { bot, upd ->
+        val profile = getProfileByCallback(upd.callbackQuery.callbackData)
+        val adp = profile.getAuthenticationDetailsProvider()
+        val instanceInfo = ServerInstance.fromJson(upd.callbackQuery.callbackData.extraData[JsonFields.ServerInstance])
+        val networkClient = VirtualNetworkClient(adp)
+
+        val publicIps = networkClient.listPublicIps(
+            ListPublicIpsRequest.builder()
+                .compartmentId(profile.tenantId)
+                .scope(ListPublicIpsRequest.Scope.Region)
+                .lifetime(ListPublicIpsRequest.Lifetime.Reserved)
+                .build()
+        ).items
+
+        if (publicIps.size == 0) {
+            EditMessageText.builder()
+                .chatId(upd.callbackQuery.message.chatId.toString())
+                .messageId(upd.callbackQuery.message.messageId)
+                .replyMarkup(
+                    InlineKeyboardGroupBuilder()
+                        .addBackButton(upd.callbackQuery.callbackData.next("oc_server_network_vnic_edit"))
+                        .build()
+                )
+                .text(
+                    """
+                你还没有可以绑定到实例的公共 IP。
+            """.trimIndent()
+                )
+                .build().execute(bot)
+            return@callbackQueryOf
+        }
+
+        val keyboardBuilder = InlineKeyboardGroupBuilder()
+        for (publicIp in publicIps) {
+            keyboardBuilder.rowButton {
+                text(publicIp.ipAddress)
+                callbackData(
+                    upd.callbackQuery.callbackData.next(
+                        newAction = "oc_server_network_change_ipv4pub_execute",
+                        newExtraData = jsonObjectOf {
+                            JsonFields.PublicIpId += publicIp.id
+                        })
+                )
+            }
+        }
+
+        bot.db().getVar<Boolean>(
+            "oc_server_network_change_ipv4pub::" +
+                    "chat_${upd.callbackQuery.message.chatId}::user_${upd.callbackQuery.from.id}::flag"
+        ).set(false)
+        EditMessageText.builder()
+            .chatId(upd.callbackQuery.message.chatId.toString())
+            .messageId(upd.callbackQuery.message.messageId)
+            .replyMarkup(
+                keyboardBuilder
+                    .addBackButton(upd.callbackQuery.callbackData.next("oc_server_network_vnic_edit"))
+                    .build()
+            )
+            .text(
+                """
+                选择一个绑定到 ${instanceInfo.displayName} 的公共 IP：
+            """.trimIndent()
+            )
+            .build()
+
+    }
+
+    fun changePublicIpRandomPrompt(): Reply = callbackQueryOf("oc_server_network_change_ipv4pub_random") { bot, upd ->
+        val instanceInfo = ServerInstance.fromJson(upd.callbackQuery.callbackData.extraData[JsonFields.ServerInstance])
+        EditMessageText.builder()
+            .chatId(upd.callbackQuery.message.chatId.toString())
+            .messageId(upd.callbackQuery.message.messageId)
+            .replyMarkup(
+                createPromptKeyboard(
+                    yesCallback = upd.callbackQuery.callbackData.next("oc_server_network_change_ipv4pub_random::execute"),
+                    noCallback = upd.callbackQuery.callbackData.next("oc_server_network_vnic_edit")
+                )
+            )
+            .text(
+                "你真的要为实例 ${instanceInfo.displayName} 更换成临时公共 IP？\n" +
+                        "（如果原来的公共 IP 是预留 IP 的话，将不会删除该 IP）"
+            )
+            .build().execute(bot)
+    }
+
+    fun changePublicIpRandomExecute(): Reply = callbackQueryOf("oc_server_network_change_ipv4pub_random::execute")
+    { bot, upd ->
+        val profile = getProfileByCallback(upd.callbackQuery.callbackData)
+        val adp = profile.getAuthenticationDetailsProvider()
+        val vnicId = upd.callbackQuery.callbackData.extraData[JsonFields.VnicId].asString
+        val instanceInfo = ServerInstance.fromJson(upd.callbackQuery.callbackData.extraData[JsonFields.ServerInstance])
+        val networkClient = VirtualNetworkClient(adp)
+
+        EditMessageText.builder()
+            .chatId(upd.callbackQuery.message.chatId.toString())
+            .messageId(upd.callbackQuery.message.messageId)
+            .text("正在准备更换公共 IP...")
+            .build()
+            .execute(bot)
+
+        val vnic = networkClient.getVnic(
+            GetVnicRequest.builder()
+                .vnicId(vnicId)
+                .build()
+        ).vnic
+        val privateIp = networkClient.listPrivateIps(
+            ListPrivateIpsRequest.builder()
+                .vnicId(vnicId)
+                .subnetId(vnic.subnetId)
+                .build()
+        ).items.first()
+        val beforePublicIp = networkClient.getPublicIpByPrivateIpId(
+            GetPublicIpByPrivateIpIdRequest.builder()
+                .getPublicIpByPrivateIpIdDetails(
+                    GetPublicIpByPrivateIpIdDetails.builder()
+                        .privateIpId(privateIp.id)
+                        .build()
+                )
+                .build()
+        ).publicIp
+
+        if (beforePublicIp.lifetime == PublicIp.Lifetime.Ephemeral) {
+            EditMessageText.builder()
+                .chatId(upd.callbackQuery.message.chatId.toString())
+                .messageId(upd.callbackQuery.message.messageId)
+                .text("正在删除旧的公共 IP...")
+                .build()
+                .execute(bot)
+            networkClient.deletePublicIp(
+                DeletePublicIpRequest.builder()
+                    .publicIpId(beforePublicIp.id)
+                    .build()
+            )
+        }
+
+        EditMessageText.builder()
+            .chatId(upd.callbackQuery.message.chatId.toString())
+            .messageId(upd.callbackQuery.message.messageId)
+            .text("正在创建新的公共 IP...")
+            .build()
+            .execute(bot)
+
+        val afterPublicIp = networkClient.createPublicIp(
+            CreatePublicIpRequest.builder()
+                .createPublicIpDetails(
+                    CreatePublicIpDetails.builder()
+                        .lifetime(CreatePublicIpDetails.Lifetime.Ephemeral)
+                        .privateIpId(privateIp.id)
+                        .compartmentId(profile.tenantId)
+                        .build()
+                )
+                .build()
+        ).publicIp
+
+        EditMessageText.builder()
+            .chatId(upd.callbackQuery.message.chatId.toString())
+            .messageId(upd.callbackQuery.message.messageId)
+            .text(
+                """
+                实例 ${instanceInfo.displayName} 的 VNIC ${vnic.displayName} 已成功更换公共 IP（临时）
+                新的公共 IP：${afterPublicIp.ipAddress}
+            """.trimIndent()
+            )
+            .replyMarkup(
+                InlineKeyboardGroupBuilder().addBackButton(
+                    callback = upd.callbackQuery.callbackData.next("oc_server_network_vnic_edit")
+                ).build()
+            )
+            .build()
+            .execute(bot)
     }
 
     companion object {

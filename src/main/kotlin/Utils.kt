@@ -457,7 +457,37 @@ object JsonFields {
      * VCN 的 [OCID]
      * 类型为 [String]
      */
-    const val VcnId = "vcnId"
+    const val VcnId = "vcn_id"
+
+    /**
+     * VCN 显示名称.
+     * 类型为 [String]
+     */
+    const val VcnDisplayName = "vcn_display_name"
+
+    /**
+     * Subnet Id.
+     * 类型为 [String]
+     */
+    const val SubnetId = "subnet_id"
+
+    /**
+     * 子网中的公网 IPv4 Id 列表.
+     * 类型为 List<String>
+     */
+    const val SubnetPublicIps = "subnet_ipv4_public_list"
+
+    /**
+     * 公网 IP 的 Id.
+     * 类型为 [String]
+     */
+    const val PublicIpId = "public_ip_id"
+
+    /**
+     * 私有 IP 的 OCID
+     * 类型为 [String]
+     */
+    const val PrivateIpId = "private_ip_id"
 
     /**
      * VCN 信息.
@@ -470,5 +500,11 @@ object JsonFields {
      * 类型为 [String]
      */
     const val PowerAction = "power_action"
+
+    /**
+     * VNIC ID
+     * 类型为 [String]
+     */
+    const val VnicId = "vnic_id"
 
 }
