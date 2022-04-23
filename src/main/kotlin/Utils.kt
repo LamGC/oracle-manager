@@ -443,12 +443,32 @@ fun jsonObjectOf(jsonObject: JsonObject = JsonObject(), block: JsonObjectBuilder
 object JsonFields {
     /**
      * [OracleAccountProfile] 字段
+     * 类型为 [JsonObject]
      */
     const val AccountProfile = "account_profile"
 
     /**
      * [ServerInstance]
+     * 类型为 [JsonObject]
      */
     const val ServerInstance = "server_instance"
+
+    /**
+     * VCN 的 [OCID]
+     * 类型为 [String]
+     */
+    const val VcnId = "vcnId"
+
+    /**
+     * VCN 信息.
+     * 类型为 [JsonObject] => BMC.Vcn
+     */
+    const val VcnInfo = "vcn_info"
+
+    /**
+     * [InstanceAction] 的操作值
+     * 类型为 [String]
+     */
+    const val PowerAction = "power_action"
 
 }

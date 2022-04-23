@@ -251,33 +251,33 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
             .rowButton {
                 text("开机")
                 callbackData(upd.callbackQuery.callbackData.next("oc_server_power_query", jsonObjectOf {
-                    "power_action" += InstanceAction.START.actionValue
+                    JsonFields.PowerAction += InstanceAction.START.actionValue
                 }))
             }
             .newRow()
             .addButton {
                 text("重启（软重启）")
                 callbackData(upd.callbackQuery.callbackData.next("oc_server_power_query", jsonObjectOf {
-                    "power_action" += InstanceAction.SOFT_RESET.actionValue
+                    JsonFields.PowerAction += InstanceAction.SOFT_RESET.actionValue
                 }))
             }
             .addButton {
                 text("强制重启")
                 callbackData(upd.callbackQuery.callbackData.next("oc_server_power_query", jsonObjectOf {
-                    "power_action" += InstanceAction.RESET.actionValue
+                    JsonFields.PowerAction += InstanceAction.RESET.actionValue
                 }))
             }
             .newRow()
             .addButton {
                 text("关机（软关机）")
                 callbackData(upd.callbackQuery.callbackData.next("oc_server_power_query", jsonObjectOf {
-                    "power_action" += InstanceAction.SOFT_STOP.actionValue
+                    JsonFields.PowerAction += InstanceAction.SOFT_STOP.actionValue
                 }))
             }
             .addButton {
                 text("强制关机")
                 callbackData(upd.callbackQuery.callbackData.next("oc_server_power_query", jsonObjectOf {
-                    "power_action" += InstanceAction.STOP.actionValue
+                    JsonFields.PowerAction += InstanceAction.STOP.actionValue
                 }))
             }
             .then()
