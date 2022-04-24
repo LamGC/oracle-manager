@@ -4,8 +4,6 @@ import com.oracle.bmc.ConfigFileReader
 import com.oracle.bmc.identity.IdentityClient
 import com.oracle.bmc.model.BmcException
 import mu.KotlinLogging
-import org.apache.hc.client5.http.classic.methods.HttpGet
-import org.apache.hc.client5.http.impl.classic.HttpClients
 import org.telegram.abilitybots.api.bot.BaseAbilityBot
 import org.telegram.abilitybots.api.objects.*
 import org.telegram.abilitybots.api.util.AbilityExtension
@@ -16,8 +14,6 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
 import java.io.ByteArrayInputStream
 import java.security.interfaces.RSAPrivateCrtKey
-
-private val httpClient = HttpClients.createSystem()
 
 @Suppress("unused")
 class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityExtension {
@@ -37,9 +33,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
         .reply(ReplyFlow.builder(bot.db())
             .action { bot, upd ->
                 val configFile = if (upd.message.hasDocument()) {
-                    val configUrl = bot.getFileUrl(upd.message.document.fileId)
-                    val httpResponse = httpClient.execute(HttpGet(configUrl))
-                    ConfigFileReader.parse(httpResponse.entity.content, "DEFAULT")
+                    ConfigFileReader.parse(bot.getFileAsStream(upd.message.document.fileId), "DEFAULT")
                 } else if (upd.message.hasText()) {
                     ConfigFileReader.parse(ByteArrayInputStream(upd.message.text.toByteArray()), "DEFAULT")
                 } else {
@@ -96,9 +90,8 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
                     .action { bot, upd ->
                         try {
                             val privateKey = try {
-                                val keyUrl = bot.getFileUrl(upd.message.document.fileId)
-                                val response = httpClient.execute(HttpGet(keyUrl))
-                                loadPkcs8PrivateKeyFromStream(response.entity.content)
+                                val keyStream = bot.getFileAsStream(upd.message.document.fileId)
+                                loadPkcs8PrivateKeyFromStream(keyStream)
                             } catch (e: Exception) {
                                 logger.error(e) { "接收密钥文件时发生错误." }
                                 bot.silent().send("接收密钥时发生错误，请重试一次。", upd.message.chatId)
