@@ -407,28 +407,28 @@ fun getProfileByCallback(callback: InlineKeyboardCallback): OracleAccountProfile
 
 class JsonObjectBuilder(private val jsonObject: JsonObject) {
 
-    operator fun String.plusAssign(json: JsonElement) {
+    operator fun String.plusAssign(json: JsonElement?) {
         jsonObject.add(this, json)
     }
 
-    operator fun String.plusAssign(value: String) {
+    operator fun String.plusAssign(value: String?) {
         jsonObject.addProperty(this, value)
     }
 
-    operator fun String.plusAssign(value: Boolean) {
+    operator fun String.plusAssign(value: Boolean?) {
         jsonObject.addProperty(this, value)
     }
 
-    operator fun String.plusAssign(value: Char) {
+    operator fun String.plusAssign(value: Char?) {
         jsonObject.addProperty(this, value)
     }
 
-    operator fun String.plusAssign(value: Number) {
+    operator fun String.plusAssign(value: Number?) {
         jsonObject.addProperty(this, value)
     }
 
-    operator fun String.plusAssign(value: Any) {
-        jsonObject.add(this, gson.toJsonTree(value))
+    operator fun String.plusAssign(value: Any?) {
+        jsonObject.add(this, if (value == null) JsonNull.INSTANCE else gson.toJsonTree(value))
     }
 
     fun String.delete(setNull: Boolean = false) {
