@@ -49,6 +49,11 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Predicate
 import java.util.regex.Pattern
 
+fun BaseAbilityBot.getFileAsStream(fileId: String): InputStream {
+    val file = execute(GetFile(fileId))
+    return downloadFileAsStream(file)
+}
+
 fun BaseAbilityBot.getFileUrl(fileId: String, apiServer: String = "https://api.telegram.org"): String {
     val file = execute(GetFile(fileId))
     return "$apiServer/file/bot${botToken}/${file.filePath}"
