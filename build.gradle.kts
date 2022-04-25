@@ -59,6 +59,31 @@ publishing {
             pom {
                 name.set("Oracle-manager")
                 description.set("在 Telegram 管理你的 Oracle.")
+
+                url.set("https://github.com/LamGC/oracle-manager")
+                licenses {
+                    license {
+                        name.set("The MIT License")
+                        url.set("https://www.opensource.org/licenses/mit-license.php")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("LamGC")
+                        name.set("LamGC")
+                        email.set("lam827@lamgc.net")
+                        url.set("https://github.com/LamGC")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:https://github.com/LamGC/oracle-manager.git")
+                    developerConnection.set("scm:git:https://github.com/LamGC/oracle-manager.git")
+                    url.set("https://github.com/LamGC/oracle-manager")
+                }
+                issueManagement {
+                    url.set("https://github.com/LamGC/oracle-manager/issues")
+                    system.set("Github Issues")
+                }
             }
         }
     }
