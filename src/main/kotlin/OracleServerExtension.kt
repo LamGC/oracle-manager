@@ -1,6 +1,8 @@
 package net.lamgc.scext.oraclemanager
 
 import com.google.gson.JsonElement
+import com.google.gson.reflect.TypeToken
+import com.oracle.bmc.core.BlockstorageClient
 import com.oracle.bmc.core.ComputeClient
 import com.oracle.bmc.core.VirtualNetworkClient
 import com.oracle.bmc.core.model.*
@@ -224,6 +226,14 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
         val client = ComputeClient(profile.getAuthenticationDetailsProvider())
         val instanceInfo = ServerInstance.fromJson(upd.callbackQuery.callbackData.extraData[JsonFields.ServerInstance])
         try {
+            val bootVolumeAttachments = client.listBootVolumeAttachments(
+                ListBootVolumeAttachmentsRequest.builder()
+                    .instanceId(instanceInfo.id)
+                    .compartmentId(profile.tenantId)
+                    .availabilityDomain(instanceInfo.availabilityDomain)
+                    .build()
+            ).items.map { it.bootVolumeId }.toList()
+
             client.terminateInstance(
                 TerminateInstanceRequest.builder()
                     .instanceId(instanceInfo.id)
@@ -234,6 +244,19 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
                 .messageId(upd.callbackQuery.message.messageId)
                 .chatId(upd.callbackQuery.message.chatId.toString())
                 .replyMarkup(InlineKeyboardGroupBuilder()
+                    .rowButton {
+                        text("删除引导卷")
+                        callbackData(
+                            upd.callbackQuery.callbackData.next(
+                                "oc_server_remove_bootvolume",
+                                jsonObjectOf {
+                                    JsonFields.AccountProfile += profile
+                                    JsonFields.BootVolumeIds += bootVolumeAttachments
+                                },
+                                replaceData = true
+                            )
+                        )
+                    }
                     .rowButton {
                         text("<<< 回到服务器列表")
                         callbackData(upd.callbackQuery.callbackData.next("oc_server_list", jsonObjectOf {
@@ -246,6 +269,110 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
             logger.error(e) { "请求释放实例时发生错误." }
             bot.silent().send("请求释放实例时发生错误，请稍后重试。", upd.callbackQuery.message.chatId)
         }
+    }
+
+    fun removeBootVolumePrompt(): Reply = callbackQueryOf("oc_server_remove_bootvolume") { bot, upd ->
+        val profile = getProfileByCallback(upd.callbackQuery.callbackData)
+        val client = BlockstorageClient(profile.getAuthenticationDetailsProvider())
+        val bootVolumeIds =
+            gson.fromJson<List<String>>(
+                upd.callbackQuery.callbackData.extraData[JsonFields.BootVolumeIds],
+                object : TypeToken<List<String>>() {}.type
+            )
+
+        if (bootVolumeIds.isEmpty()) {
+            bot.silent().send("没有需要删除的引导卷。", upd.callbackQuery.message.chatId)
+            return@callbackQueryOf
+        }
+
+        val msgBuilder = StringBuilder(
+            """
+            确定要删除以下引导卷？
+        """.trimIndent()
+        ).append('\n')
+
+        for (bootVolumeId in bootVolumeIds) {
+            val bootVolume = client.getBootVolume(
+                GetBootVolumeRequest.builder()
+                    .bootVolumeId(bootVolumeId)
+                    .build()
+            ).bootVolume
+            msgBuilder.append("- ${bootVolume.displayName}（${bootVolume.sizeInGBs} GB）")
+        }
+
+        EditMessageText.builder()
+            .chatId(upd.callbackQuery.message.chatId.toString())
+            .messageId(upd.callbackQuery.message.messageId)
+            .replyMarkup(
+                createPromptKeyboard(
+                    yesCallback = upd.callbackQuery.callbackData.next("oc_server_remove_bootvolume::execute"),
+                    noCallback = upd.callbackQuery.callbackData.next("oc_server_list")
+                )
+            )
+            .text(msgBuilder.toString())
+            .build().execute(bot)
+    }
+
+    fun removeBootVolumeExecute(): Reply = callbackQueryOf("oc_server_remove_bootvolume::execute") { bot, upd ->
+        val profile = getProfileByCallback(upd.callbackQuery.callbackData)
+        val client = BlockstorageClient(profile.getAuthenticationDetailsProvider())
+        val bootVolumeIds =
+            gson.fromJson<List<String>>(
+                upd.callbackQuery.callbackData.extraData[JsonFields.BootVolumeIds],
+                object : TypeToken<List<String>>() {}.type
+            )
+
+        if (bootVolumeIds.isEmpty()) {
+            bot.silent().send("没有需要删除的引导卷。", upd.callbackQuery.message.chatId)
+            return@callbackQueryOf
+        }
+
+        // FIXME: 由于实例仍未释放完成, 引导卷依然挂载在实例上, 会导致引导卷删除失败.
+
+        val msgBuilder = StringBuilder("引导卷删除结果：").append('\n')
+        var hasError = false
+        var errorVolume: BootVolume? = null
+        var error: BmcException? = null
+        for (bootVolumeId in bootVolumeIds) {
+            val bootVolume = client.getBootVolume(
+                GetBootVolumeRequest.builder()
+                    .bootVolumeId(bootVolumeId)
+                    .build()
+            ).bootVolume
+            if (hasError) {
+                msgBuilder.append("[跳过] ${bootVolume.displayName}").append('\n')
+                continue
+            }
+            try {
+                client.deleteBootVolume(
+                    DeleteBootVolumeRequest.builder()
+                        .bootVolumeId(bootVolumeId)
+                        .build()
+                )
+                msgBuilder.append("[成功] ${bootVolume.displayName}").append('\n')
+            } catch (e: BmcException) {
+                hasError = true
+                errorVolume = bootVolume
+                error = e
+                msgBuilder.append("[错误] ${bootVolume.displayName}").append('\n')
+            }
+        }
+
+        if (hasError && errorVolume != null) {
+            msgBuilder.append("\n\n").append("引导卷 ${errorVolume.displayName} (${errorVolume.sizeInGBs} GB) 删除失败：\n")
+                .append(error!!.message)
+        }
+
+        EditMessageText.builder()
+            .chatId(upd.callbackQuery.message.chatId.toString())
+            .messageId(upd.callbackQuery.message.messageId)
+            .replyMarkup(
+                InlineKeyboardGroupBuilder()
+                    .addBackButton(upd.callbackQuery.callbackData.next("oc_server_list"))
+                    .build()
+            )
+            .text(msgBuilder.toString())
+            .build().execute(bot)
     }
 
     fun editServerPower(): Reply = callbackQueryOf("oc_server_power_edit") { bot, upd ->
