@@ -33,7 +33,9 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
             ListInstancesRequest.builder()
                 .compartmentId(profile.tenantId)
                 .build()
-        ).items
+        ).items.filter {
+            it.lifecycleState in (Instance.LifecycleState.Moving..Instance.LifecycleState.CreatingImage)
+        }
 
         val keyboardBuilder = InlineKeyboardGroupBuilder()
         for (instance in instances) {
