@@ -460,8 +460,11 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
                 .lifetime(ListPublicIpsRequest.Lifetime.Reserved)
                 .build()
         ).items.filter {
-            it.lifecycleState != PublicIp.LifecycleState.Available ||
-                    it.lifecycleState != PublicIp.LifecycleState.Unassigned
+            it.privateIpId == null &&
+                    (
+                            it.lifecycleState == PublicIp.LifecycleState.Available ||
+                                    it.lifecycleState == PublicIp.LifecycleState.Unassigned
+                            )
         }
 
         if (publicIps.isEmpty()) {
