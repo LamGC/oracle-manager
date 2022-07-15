@@ -643,6 +643,7 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
             .text(
                 """
                 选择一个绑定到 ${instanceInfo.displayName} 的公共 IP：
+                （仅显示可以绑定的保留 IP，如果保留 IP 处于移动中的状态，请稍后再检查列表是否存在该 IP）
             """.trimIndent()
             )
             .build().execute(bot)
