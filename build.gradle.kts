@@ -12,27 +12,25 @@ repositories {
     mavenLocal()
     mavenCentral()
 
-    maven("https://raw.githubusercontent.com/LamGC/maven-repository/releases/") {
-        mavenContent {
-            releasesOnly()
-        }
-    }
+    maven("https://nexus.kuku.me/repository/maven-releases/")
 }
 
 dependencies {
-    implementation("io.github.microutils:kotlin-logging:2.1.21")
-    compileOnly("net.lamgc:scalabot-extension:0.2.0")
+    implementation("io.github.microutils:kotlin-logging:2.1.23")
+    compileOnly("net.lamgc:scalabot-extension:0.5.0")
 
-    val ociSdkVer = "2.24.0"
+    val ociSdkVer = "2.31.0"
     implementation("com.oracle.oci.sdk:oci-java-sdk-core:$ociSdkVer")
     implementation("com.oracle.oci.sdk:oci-java-sdk-identity:$ociSdkVer")
     implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage:$ociSdkVer")
 
     implementation("org.apache.httpcomponents.client5:httpclient5:5.1.3")
 
-    implementation("org.ktorm:ktorm-core:3.4.1")
+    implementation("org.ktorm:ktorm-core:3.5.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.20")
     implementation("org.xerial:sqlite-jdbc:3.36.0.3")
+
+    implementation("com.esotericsoftware.kryo:kryo5:5.3.0")
 
     implementation("com.google.code.gson:gson:2.9.0")
 
@@ -44,12 +42,26 @@ tasks.test {
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.jvmTarget = "11"
 }
 
 publishing {
     repositories {
-        mavenLocal()
+        if (project.version.toString().endsWith("-SNAPSHOT")) {
+            maven("https://nexus.kuku.me/repository/maven-snapshots/") {
+                credentials {
+                    username = project.properties["repo.credentials.private.username"].toString()
+                    password = project.properties["repo.credentials.private.password"].toString()
+                }
+            }
+        } else {
+            maven("https://nexus.kuku.me/repository/maven-releases/") {
+                credentials {
+                    username = project.properties["repo.credentials.private.username"].toString()
+                    password = project.properties["repo.credentials.private.password"].toString()
+                }
+            }
+        }
     }
 
     publications {
