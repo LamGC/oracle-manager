@@ -71,7 +71,27 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
         val profile = getProfileByCallback(upd.callbackQuery.callbackData)
         val instanceInfo = ServerInstance.fromJson(upd.callbackQuery.callbackData.extraData[JsonFields.ServerInstance])
         val client = ComputeClient(profile.getAuthenticationDetailsProvider())
+        val networkClient = VirtualNetworkClient(profile.getAuthenticationDetailsProvider())
         val instance = client.getInstance(GetInstanceRequest.builder().instanceId(instanceInfo.id).build()).instance
+
+        val mainVnic: Vnic? = client.listVnicAttachments(
+            ListVnicAttachmentsRequest.builder()
+                .compartmentId(profile.tenantId)
+                .instanceId(instance.id)
+                .build()
+        ).items.let {
+            if (it.size == 1) {
+                return@let networkClient.getVnic(GetVnicRequest.builder().vnicId(it.first().vnicId).build()).vnic
+            } else {
+                for (vnicAttachment in it) {
+                    val v = networkClient.getVnic(GetVnicRequest.builder().vnicId(vnicAttachment.vnicId).build()).vnic
+                    if (v.isPrimary) {
+                        return@let v
+                    }
+                }
+                return@let null
+            }
+        }
 
         val keyboardBuilder = InlineKeyboardGroupBuilder()
             .newRow()
@@ -108,6 +128,7 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
                 网络带宽：${shape.networkingBandwidthInGbps} Gbps
                 区域：${instanceInfo.regionId}
                 可用区 / 容错区：${instanceInfo.availabilityDomain} / ${instanceInfo.faultDomain}
+                主要公共 IPv4：${mainVnic?.publicIp ?: "（无主要 VNIC）"}
             """.trimIndent()
             )
             .chatId(upd.callbackQuery.message.chatId.toString())
