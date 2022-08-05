@@ -156,7 +156,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
         msg: String,
         chatId: Long,
         profile: OracleAccountProfile,
-        changeNameMsg: String = "点此更改机器人的名称"
+        changeNameMsg: String = "点此更改账号的名称",
     ): SendMessage {
         val markup = InlineKeyboardGroupBuilder()
             .configure {
@@ -372,7 +372,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
 
             bot.db().getVar<String>(entryName).set(getProfileByCallback(upd.callbackQuery.callbackData).toJsonString())
             bot.silent().send(
-                "当前机器人的名称为：\n${profile.name}\n请发送机器人的新名称。",
+                "当前账号的名称为：\n${profile.name}\n请发送账号的新名称。",
                 upd.callbackQuery.message.chatId
             )
         }
