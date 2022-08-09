@@ -200,7 +200,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
             val identityClient = IdentityClient(provider)
             val text = try {
                 val user = identityClient.getUser(provider.userId)
-                "${account.name} / ${user.name}（${user.email}）【${account.regionId}】"
+                "${account.name} / ${user.email}【${account.regionId}】"
             } catch (e: BmcException) {
                 "${account.name} / null 【${account.regionId}】"
             }
@@ -219,8 +219,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
             )
         }
         val text = """
-                当前 Telegram 用户已绑定以下 Oracle 账号
-                （账号没有名字只有邮箱是因为通过 API 获取名字失败）
+                当前 Telegram 用户已绑定以下 Oracle 账号：
                 """.trimIndent()
 
         if (messageId == null) {
