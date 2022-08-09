@@ -1,3 +1,5 @@
+@file:Suppress("SqlNoDataSourceInspection")
+
 package net.lamgc.scext.oraclemanager
 
 import org.ktorm.database.Database
