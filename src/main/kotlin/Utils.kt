@@ -26,8 +26,11 @@ import org.telegram.abilitybots.api.sender.MessageSender
 import org.telegram.abilitybots.api.sender.SilentSender
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod
 import org.telegram.telegrambots.meta.api.methods.GetFile
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery
 import org.telegram.telegrambots.meta.api.objects.Update
+import org.telegram.telegrambots.meta.api.objects.User
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup.InlineKeyboardMarkupBuilder
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton
@@ -190,6 +193,7 @@ class InlineKeyboardGroupBuilder {
     fun build(): InlineKeyboardMarkup = builder.build()
 }
 
+@Suppress("MemberVisibilityCanBePrivate")
 class InlineKeyboardRowBuilder(private val groupBuilder: InlineKeyboardGroupBuilder) {
 
     private val row = mutableListOf<InlineKeyboardButton>()
@@ -212,7 +216,9 @@ class InlineKeyboardRowBuilder(private val groupBuilder: InlineKeyboardGroupBuil
     }
 
     fun then(): InlineKeyboardGroupBuilder {
-        groupBuilder.addRow(row)
+        if (row.isNotEmpty()) {
+            groupBuilder.addRow(row)
+        }
         return groupBuilder
     }
 
@@ -225,9 +231,16 @@ class InlineKeyboardRowBuilder(private val groupBuilder: InlineKeyboardGroupBuil
     }
 }
 
-fun InlineKeyboardGroupBuilder.addBackButton(callback: InlineKeyboardCallback): InlineKeyboardGroupBuilder {
+fun InlineKeyboardButtonBuilder.emptyData() {
+    callbackData("""{"__EMPTY__": null}""")
+}
+
+fun InlineKeyboardGroupBuilder.addBackButton(
+    callback: InlineKeyboardCallback,
+    message: String = "<<< 返回上一级",
+): InlineKeyboardGroupBuilder {
     rowButton {
-        text("<<< 返回上一级")
+        text(message)
         callbackData(callback)
     }
     return this
@@ -307,15 +320,15 @@ fun createPromptKeyboard(
         .build()
 }
 
-fun <T : java.io.Serializable, Method : BotApiMethod<T>, Sender : AbsSender> Method.execute(sender: Sender): T {
+fun <T : java.io.Serializable, Method : BotApiMethod<T>> Method.execute(sender: AbsSender): T {
     return sender.execute(this)
 }
 
-fun <T : java.io.Serializable, Method : BotApiMethod<T>, Sender : MessageSender> Method.execute(sender: Sender): T {
+fun <T : java.io.Serializable, Method : BotApiMethod<T>> Method.execute(sender: MessageSender): T {
     return sender.execute(this)
 }
 
-fun <T : java.io.Serializable, Method : BotApiMethod<T>, Sender : SilentSender> Method.execute(sender: Sender): Optional<T>? {
+fun <T : java.io.Serializable, Method : BotApiMethod<T>> Method.execute(sender: SilentSender): Optional<T>? {
     return sender.execute(this)
 }
 
@@ -391,7 +404,7 @@ fun Random.randomString(length: Int): String {
 fun callbackQueryOf(
     action: String,
     checkProfileOwner: Boolean = true,
-    block: (BaseAbilityBot, Update) -> Unit
+    block: (BaseAbilityBot, Update) -> Unit,
 ): Reply {
     return Reply.of(block, mutableListOf<Predicate<Update>?>().apply {
         add(callbackQueryAt(action))
@@ -399,6 +412,35 @@ fun callbackQueryOf(
             add(checkCallbackQueryIsProfileOwner())
         }
     }.toList())
+}
+
+fun callbackQueryHandleOf(
+    action: String,
+    extraCondition: List<Predicate<Update>> = emptyList(),
+    checkProfileOwner: Boolean = true,
+    block: CallbackQueryHandler.() -> Unit,
+): Reply {
+    return Reply.of({ bot, upd ->
+        CallbackQueryHandler(bot, upd).block()
+    }, mutableListOf<Predicate<Update>?>().apply {
+        add(callbackQueryAt(action))
+        addAll(extraCondition)
+        if (checkProfileOwner) {
+            add(checkCallbackQueryIsProfileOwner())
+        }
+    }.toList())
+}
+
+class CallbackQueryHandler(val bot: BaseAbilityBot, val upd: Update) {
+    val callbackData: InlineKeyboardCallback
+        get() = upd.callbackQuery.callbackData
+
+    val chatId: Long
+        get() = upd.callbackQuery.message.chatId
+
+    val user: User
+        get() = upd.callbackQuery.from
+
 }
 
 fun getProfileByCallback(callback: InlineKeyboardCallback): OracleAccountProfile {
@@ -446,6 +488,49 @@ fun jsonObjectOf(jsonObject: JsonObject = JsonObject(), block: JsonObjectBuilder
 }
 
 object JsonFields {
+
+    /**
+     * 子网显示名称.
+     * 类型为 [String]
+     */
+    const val SubnetDisplayName = "subnet_display_name"
+
+    /**
+     * 镜像 Id.
+     * 类型为 [String]
+     */
+    const val ImageId = "image_id"
+
+    /**
+     * 镜像显示名称.
+     * 类型为 [String]
+     */
+    const val ImageDisplayName = "image_display_name"
+
+    /**
+     * 灵活规格的 CPU 数量.
+     * 类型为 [Float]
+     */
+    const val ShapeCpus = "shape_cpus"
+
+    /**
+     * 灵活规格的内存数量.
+     * 类型为 [Float]
+     */
+    const val ShapeMemories = "shape_memories"
+
+    /**
+     * 实例规格 Id.
+     * 类型为 [String]
+     */
+    const val ShapeId = "shape_id"
+
+    /**
+     * 实例规格.
+     * 类型为 [JsonObject] -> [Shape]
+     */
+    const val Shape = "shape"
+
     /**
      * [OracleAccountProfile] 字段
      * 类型为 [JsonObject]
@@ -475,6 +560,12 @@ object JsonFields {
      * 类型为 [String]
      */
     const val SubnetId = "subnet_id"
+
+    /**
+     * 子网可用域.
+     * 类型为 [String]
+     */
+    const val Subnet_AvailabilityDomain = "subnet_availability_domain"
 
     /**
      * 子网中的公网 IPv4 Id 列表.
@@ -512,4 +603,118 @@ object JsonFields {
      */
     const val VnicId = "vnic_id"
 
+    /**
+     * 引导卷 Id 列表.
+     * 类型为 [Array<String>]
+     */
+    const val BootVolumeIds = "bootvolume_id_list"
+
+    /**
+     * 引导卷 Id.
+     * 类型为 [String]
+     */
+    const val BootVolumeId = "bootvolume_id"
+
+    /**
+     * 引导卷名称.
+     * 类型为 [String]
+     */
+    const val BootVolumeDisplayName = "bootvolume_display_name"
+
+    /**
+     * 引导卷 Id.
+     * 类型为 [com.oracle.bmc.core.model.BootVolume]
+     */
+    const val BootVolume = "bootvolume"
+
+    /**
+     * 实例创建参数.
+     * 类型为 [CreateInstanceOptions]
+     */
+    const val CreateInstanceOptions = "create_instance_options"
+
+    /**
+     * 可用域 Id.
+     * 类型为 [String]
+     */
+    const val AvailabilityDomainId = "availability_domain_id"
+
+    /**
+     * 可用域名称.
+     * 类型为 [String]
+     */
+    const val AvailabilityDomainName = "availability_domain_name"
+
+    /**
+     * 容错域 Id.
+     * 类型为 [String]
+     */
+    const val FaultDomainId = "fault_domain_id"
+
+    /**
+     * 容错域名称.
+     * 类型为 [String]
+     */
+    const val FaultDomainName = "fault_domain_name"
+
+    /**
+     * 当前页码.
+     * 类型为 [Int]
+     */
+    const val CurrentPageNumber = "current_page_number"
+
+    /**
+     * 下一页的页码.
+     * 类型为 [String]
+     */
+    const val NextPageNumber = "next_page_number"
+
+    /**
+     * 上一页的页码.
+     * 类型为 [String]
+     */
+    const val PrevPage = "prev_page_number"
+
+    /**
+     * 目标页码.
+     * 类型为 [String]
+     */
+    const val JumpToPage = "jump_to_page"
+
+}
+
+fun EditMessageText.EditMessageTextBuilder.replyTo(callbackQuery: CallbackQuery): EditMessageText.EditMessageTextBuilder {
+    chatId(callbackQuery.message.chatId.toString())
+    messageId(callbackQuery.message.messageId)
+    return this
+}
+
+fun EditMessageReplyMarkup.EditMessageReplyMarkupBuilder.replyTo(callbackQuery: CallbackQuery)
+        : EditMessageReplyMarkup.EditMessageReplyMarkupBuilder {
+    chatId(callbackQuery.message.chatId.toString())
+    messageId(callbackQuery.message.messageId)
+    return this
+}
+
+class MapBuilder<K, V>(val map: MutableMap<K, V>) {
+    infix fun K.set(value: V?) {
+        if (value == null) {
+            map.remove(this)
+            return
+        }
+        map[this] = value
+    }
+
+    infix fun MapBuilder<K, V>.delete(key: K) {
+        map.remove(key)
+    }
+
+    infix fun MutableMap<K, V>.delete(key: K) {
+        map.remove(key)
+    }
+}
+
+fun <K, V> mapOf(map: MutableMap<K, V> = mutableMapOf(), block: MapBuilder<K, V>.() -> Unit): Map<K, V> {
+    MapBuilder(map).apply(block)
+    return map.toMap()
 }

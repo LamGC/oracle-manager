@@ -55,6 +55,9 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
         }
 
         keyboardBuilder.rowButton {
+            text("*** 创建新的服务器实例 ***")
+            callbackData(upd.callbackQuery.callbackData.next("oc_instance_create_menu"))
+        }.rowButton {
             text("<<< 返回上一级")
             callbackData(upd.callbackQuery.callbackData.next("oc_account_manager"))
         }
@@ -634,6 +637,8 @@ class OracleServerExtension(private val bot: BaseAbilityBot) : AbilityExtension 
                 .build().execute(bot)
             return@callbackQueryOf
         }
+
+        // TODO: 增加一个 创建保留 IP 的操作。
 
         val keyboardBuilder = InlineKeyboardGroupBuilder()
         for (publicIp in publicIps) {
