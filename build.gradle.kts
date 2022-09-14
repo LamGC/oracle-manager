@@ -19,7 +19,7 @@ dependencies {
     implementation("io.github.microutils:kotlin-logging:2.1.23")
     compileOnly("net.lamgc:scalabot-extension:0.5.0")
 
-    val ociSdkVer = "2.31.0"
+    val ociSdkVer = "2.43.0"
     implementation("com.oracle.oci.sdk:oci-java-sdk-core:$ociSdkVer")
     implementation("com.oracle.oci.sdk:oci-java-sdk-identity:$ociSdkVer")
     implementation("com.oracle.oci.sdk:oci-java-sdk-objectstorage:$ociSdkVer")
