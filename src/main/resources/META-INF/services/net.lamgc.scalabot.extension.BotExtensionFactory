@@ -1,2 +1,4 @@
 net.lamgc.scext.oraclemanager.ExtensionFactory
 net.lamgc.scext.oraclemanager.ServerExtensionFactory
+net.lamgc.scext.oraclemanager.OracleNetworkExtensionFactory
+net.lamgc.scext.oraclemanager.OracleCIEFactory
