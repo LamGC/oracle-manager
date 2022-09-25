@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "net.lamgc.scext"
-version = "0.0.1-SNAPSHOT"
+version = "0.0.2-SNAPSHOT"
 
 repositories {
     mavenLocal()
@@ -28,7 +28,7 @@ dependencies {
 
     implementation("org.ktorm:ktorm-core:3.5.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.20")
-    implementation("org.xerial:sqlite-jdbc:3.36.0.3")
+    implementation("org.xerial:sqlite-jdbc:3.39.3.0")
 
     implementation("com.esotericsoftware.kryo:kryo5:5.3.0")
 
@@ -47,19 +47,26 @@ tasks.withType<KotlinCompile> {
 
 publishing {
     repositories {
-        if (project.version.toString().endsWith("-SNAPSHOT")) {
-            maven("https://nexus.kuku.me/repository/maven-snapshots/") {
-                credentials {
-                    username = project.properties["repo.credentials.private.username"].toString()
-                    password = project.properties["repo.credentials.private.password"].toString()
-                }
-            }
-        } else {
-            maven("https://nexus.kuku.me/repository/maven-releases/") {
-                credentials {
-                    username = project.properties["repo.credentials.private.username"].toString()
-                    password = project.properties["repo.credentials.private.password"].toString()
-                }
+//        if (project.version.toString().endsWith("-SNAPSHOT")) {
+//            maven("https://nexus.kuku.me/repository/maven-snapshots/") {
+//                credentials {
+//                    username = project.properties["repo.credentials.private.username"].toString()
+//                    password = project.properties["repo.credentials.private.password"].toString()
+//                }
+//            }
+//        } else {
+//            maven("https://nexus.kuku.me/repository/maven-releases/") {
+//                credentials {
+//                    username = project.properties["repo.credentials.private.username"].toString()
+//                    password = project.properties["repo.credentials.private.password"].toString()
+//                }
+//            }
+//        }
+
+        maven("https://git.lamgc.me/api/packages/LamGC/maven") {
+            credentials {
+                username = project.properties["repo.credentials.self-git.username"].toString()
+                password = project.properties["repo.credentials.self-git.password"].toString()
             }
         }
     }
