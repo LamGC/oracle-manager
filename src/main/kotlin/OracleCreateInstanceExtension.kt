@@ -434,7 +434,25 @@ class OracleCreateInstanceExtension(private val bot: BaseAbilityBot) : AbilityEx
             }.build())
             .build()
 
-        val launchInstanceResponse = computeClient.launchInstance(request)
+        val launchInstanceResponse = try {
+            computeClient.launchInstance(request)
+        } catch (e: Exception) {
+            logger.error(e) { "创建服务器实例时发生错误." }
+            EditMessageText.builder()
+                .replyTo(upd.callbackQuery)
+                .text(
+                    """
+                        创建实例时发生错误！
+                        错误信息：${e.message}
+                    """.trimIndent()
+                )
+                .replyMarkup(InlineKeyboardGroupBuilder().rowButton {
+                    text("<<< 返回服务器列表")
+                    callbackData(callbackData.next("oc_server_list"))
+                }.build())
+                .build().execute(bot)
+            return@callbackQueryHandleOf
+        }
         val instance = launchInstanceResponse.instance
 
         EditMessageText.builder()
