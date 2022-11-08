@@ -28,6 +28,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
         .privacy(Privacy.PUBLIC)
         .enableStats()
         .action {
+            it.checkWriteList()
             it.bot().silent().send("发送 API 配置文件，或复制配置文件内容直接发送。", it.chatId())
         }
         .reply(ReplyFlow.builder(bot.db())
@@ -148,6 +149,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
         .privacy(Privacy.PUBLIC)
         .locality(Locality.USER)
         .action {
+            it.checkWriteList()
             doListOracleAccount(it.bot(), it.chatId(), it.user().id)
         }
         .build()
@@ -409,6 +411,7 @@ class OracleAccountManagerExtension(private val bot: BaseAbilityBot) : AbilityEx
         .locality(Locality.USER)
         .privacy(Privacy.ADMIN)
         .action {
+            it.checkWriteList()
             val count = OracleAccessKeyManager.cleanUnusedAccessKey()
             it.bot().silent().send("已清理 $count 个未使用的访问密钥。", it.chatId())
         }
